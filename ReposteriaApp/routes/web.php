@@ -14,6 +14,8 @@ use App\Http\Controllers\Admin\PagoController;
 use App\Http\Controllers\Admin\RecetaController;
 
 use App\Http\Controllers\Admin\PedidoController;
+use App\Http\Controllers\Cajero\DashboardController as CajeroDashboardController;
+use App\Http\Controllers\Repostero\DashboardController as ReposteroDashboardController;
 
 Route::get('/login', function() {
 
@@ -83,11 +85,7 @@ Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(functi
 
 Route::middleware(['role:cajero'])->prefix('cajero')->name('cajero.')->group(function () {
 
-    Route::get('/dashboard', function() {
-
-        return view('cajero.dashboardCajero');
-
-    })->name('dashboard');
+    Route::get('/dashboard', [CajeroDashboardController::class, 'index'])->name('dashboard');
 
 });
 
@@ -97,12 +95,7 @@ Route::middleware(['role:cajero'])->prefix('cajero')->name('cajero.')->group(fun
 
 Route::middleware(['role:repostero'])->prefix('repostero')->name('repostero.')->group(function () {
 
-    Route::get('/dashboard', function() {
-
-        return view('repostero.dashboardRepostero');
-
-    })->name('dashboard');
+    Route::get('/dashboard', [ReposteroDashboardController::class, 'index'])->name('dashboard');
 
 });
-
 

@@ -93,23 +93,8 @@
                             @if ($ventasPorMes->isEmpty())
                                 <div class="empty-state">No hay ventas registradas.</div>
                             @else
-                                <div class="table-container">
-                                    <table class="inventory-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Mes</th>
-                                                <th>Total vendido</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($ventasPorMes as $ventaMes)
-                                                <tr>
-                                                    <td>{{ $ventaMes->mes }}</td>
-                                                    <td>${{ number_format($ventaMes->total, 0, ',', '.') }}</td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
+                                <div class="chart-container">
+                                    <canvas id="ventasBarChart"></canvas>
                                 </div>
                             @endif
                         </div>
@@ -122,25 +107,8 @@
                             @if ($productosMasVendidos->isEmpty())
                                 <div class="empty-state">No hay productos vendidos aún.</div>
                             @else
-                                <div class="table-container">
-                                    <table class="inventory-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Producto</th>
-                                                <th>Tamaño</th>
-                                                <th>Cantidad</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($productosMasVendidos as $producto)
-                                                <tr>
-                                                    <td>{{ $producto->pro_nom }}</td>
-                                                    <td>{{ $producto->tam_nom }}</td>
-                                                    <td>{{ $producto->cantidad }}</td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
+                                <div class="chart-container">
+                                    <canvas id="productosPieChart"></canvas>
                                 </div>
                             @endif
                         </div>
@@ -241,4 +209,100 @@
         </div>
     </div>
 </body>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ventasData = @json($ventasPorMes);
+    const productosData = @json($productosMasVendidos);
+
+    const palette = [
+        '#2563EB', '#EA580C', '#16A34A', '#9333EA', '#F59E0B', '#0EA5E9',
+        '#EF4444', '#10B981', '#8B5CF6', '#EC4899', '#F97316', '#22D3EE'
+    ];
+
+    function buildPieChart(canvasId, labels, values) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+
+        const colors = labels.map((_, idx) => palette[idx % palette.length]);
+
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed;
+                                return `${context.label}: ${value.toLocaleString()}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function buildBarChart(canvasId, labels, values) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+
+        const colors = labels.map((_, idx) => palette[idx % palette.length]);
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                return `${context.label}: ${value.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+
+    if (ventasData.length) {
+        const ventasLabels = ventasData.map(item => item.mes);
+        const ventasValues = ventasData.map(item => Number(item.total));
+        buildBarChart('ventasBarChart', ventasLabels, ventasValues);
+    }
+
+    if (productosData.length) {
+        const topProductos = productosData.slice(0, 4);
+        const productoLabels = topProductos.map(item => `${item.pro_nom} (${item.tam_nom})`);
+        const productoValues = topProductos.map(item => Number(item.cantidad));
+        buildPieChart('productosPieChart', productoLabels, productoValues);
+    }
+</script>
 </html>

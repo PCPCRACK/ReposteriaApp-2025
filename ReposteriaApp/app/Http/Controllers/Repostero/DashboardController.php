@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Repostero;
 
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
@@ -13,33 +13,25 @@ class DashboardController extends Controller
     {
         $today = Carbon::today();
 
-        $ventasHoy = DB::table('Pedido')
-            ->whereDate('ped_fec', $today)
-            ->where('ped_est', 'Entregado')
-            ->sum('ped_total');
-
         $pedidosActivos = DB::table('Pedido')
+            ->whereIn('ped_est', ['Pendiente', 'Preparado'])
+            ->count();
+
+        $pedidosPendientes = DB::table('Pedido')
             ->where('ped_est', 'Pendiente')
             ->count();
 
         $totalProductos = DB::table('Producto')->count();
 
-        $productosBajoStock = DB::table('Ingrediente')
+        $totalIngredientes = DB::table('Ingrediente')->count();
+
+        $ingredientesBajoStock = DB::table('Ingrediente')
             ->whereColumn('ing_stock', '<=', 'ing_reord')
             ->count();
 
-        $empleados = DB::table('Empleado')->count();
-        $cajeros = DB::table('Cajero')->count();
-        $reposteros = DB::table('Repostero')->count();
-
-        $ventasPorMes = DB::table('Pedido')
-            ->select(
-                DB::raw("DATE_FORMAT(ped_fec, '%Y-%m') as mes"),
-                DB::raw('SUM(ped_total) as total')
-            )
-            ->where('ped_est', 'Entregado')
-            ->groupBy('mes')
-            ->orderBy('mes')
+        $stockChart = DB::table('Ingrediente')
+            ->select('ing_nom', 'ing_stock', 'ing_reord')
+            ->orderBy('ing_nom')
             ->get();
 
         $productosMasVendidos = DB::table('DetallePedido as dp')
@@ -53,7 +45,7 @@ class DashboardController extends Controller
             )
             ->groupBy('p.pro_nom', 't.tam_nom')
             ->orderByDesc('cantidad')
-            ->limit(10)
+            ->limit(5)
             ->get();
 
         $latestPurchases = DB::table('DetalleCompra as dc')
@@ -114,15 +106,13 @@ class DashboardController extends Controller
 
         $resumenPedidos = $this->construirResumenPedidos($detallesRecientes);
 
-        return view('admin.dashboardAdmin', [
-            'ventasHoy' => $ventasHoy,
+        return view('repostero.dashboardRepostero', [
             'pedidosActivos' => $pedidosActivos,
+            'pedidosPendientes' => $pedidosPendientes,
             'totalProductos' => $totalProductos,
-            'productosBajoStock' => $productosBajoStock,
-            'empleados' => $empleados,
-            'cajeros' => $cajeros,
-            'reposteros' => $reposteros,
-            'ventasPorMes' => $ventasPorMes,
+            'totalIngredientes' => $totalIngredientes,
+            'ingredientesBajoStock' => $ingredientesBajoStock,
+            'stockChart' => $stockChart,
             'productosMasVendidos' => $productosMasVendidos,
             'estadoInventario' => $estadoInventario,
             'pedidosRecientes' => $pedidosRecientes,

@@ -17,10 +17,10 @@ class CompraController extends Controller
                 'c.com_id',
                 'c.com_fec',
                 'c.com_tot',
-                'p.pro_nom',
+                'p.prov_nom',
                 DB::raw("GROUP_CONCAT(CONCAT(i.ing_nom, ' x', dc.dco_can, ' ', i.ing_um) SEPARATOR ', ') as detalle")
             )
-            ->groupBy('c.com_id', 'c.com_fec', 'c.com_tot', 'p.pro_nom')
+            ->groupBy('c.com_id', 'c.com_fec', 'c.com_tot', 'p.prov_nom')
             ->orderByDesc('c.com_fec')
             ->get();
 
