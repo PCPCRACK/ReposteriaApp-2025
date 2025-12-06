@@ -130,10 +130,7 @@
                     <div class="chart-card" id="stock-section">
                         <div class="chart-header">
                             <div class="chart-title">Stock</div>
-                            <div class="chart-filter">
-                                <span>Actualizado</span>
                             </div>
-                        </div>
                         <div class="chart-container">
                             @if ($stockChart->isEmpty())
                                 <div class="empty-state">Sin ingredientes registrados.</div>
@@ -145,13 +142,7 @@
                     <div class="chart-card" id="productos-section">
                         <div class="chart-header">
                             <div class="chart-title">Productos Más Vendidos</div>
-                            <div class="chart-filter">
-                                <span>Últimos pedidos</span>
-                                <svg width="8" height="5" viewBox="0 0 8 5" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M4 5L0 0H8L4 5Z" fill="black"/>
-                                </svg>
                             </div>
-                        </div>
                         <div class="chart-container">
                             @if ($productosMasVendidos->isEmpty())
                                 <div class="empty-state">No hay productos vendidos aún.</div>
@@ -167,15 +158,14 @@
                     <div class="inventory-header">
                         <div class="inventory-title">Estado del Inventario</div>
                         <div class="inventory-actions">
-                            <div class="inventory-search">
-                                <input type="text" placeholder="Buscar ingrediente..." class="search-input">
-                            </div>
-                            <button class="filter-button">
-                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M0 0V2H14V0H0ZM0 7H14V5H0V7ZM0 12H14V10H0V12Z" fill="#1F2937"/>
-                                </svg>
-                                Filtrar
-                            </button>
+                            <form method="GET" action="{{ route('repostero.dashboard') }}" class="filters-row">
+                                <select name="inv_filter" class="form-input">
+                                    <option value="">Todos</option>
+                                    <option value="low" @if(($invFilter ?? '') === 'low') selected @endif>Bajo stock</option>
+                                </select>
+                                <button class="filter-button" type="submit">Filtrar</button>
+                                <a class="filter-button secondary" href="{{ route('repostero.dashboard') }}">Limpiar</a>
+                            </form>
                         </div>
                     </div>
                     <div class="table-container">
@@ -184,7 +174,7 @@
                                 <tr>
                                     <th>Ingrediente</th>
                                     <th>Stock Actual</th>
-                                    <th>Stock Mínimo</th>
+                                    <th>Stock Minimo</th>
                                     <th>Proveedor</th>
                                     <th>Estado</th>
                                 </tr>
@@ -217,24 +207,7 @@
                 <!-- Recent Orders Section -->
                 <div class="orders-card" id="pedidos-section">
                     <div class="orders-header">
-                        <div class="orders-title">Pedidos Recientes</div>
-                        <div class="orders-actions">
-                            <div class="filter-select">
-                                <span>Todos los estados</span>
-                                <svg width="12" height="7" viewBox="0 0 12 7" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M6 7L0 0H12L6 7Z" fill="black"/>
-                                </svg>
-                            </div>
-                            <div class="date-selector">
-                                <span>mm/dd/yyyy</span>
-                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <rect x="2" y="3" width="14" height="13" rx="1" stroke="black" stroke-width="1.5"/>
-                                    <path d="M2 6H16" stroke="black" stroke-width="1.5"/>
-                                    <path d="M5 1V3" stroke="black" stroke-width="1.5" stroke-linecap="round"/>
-                                    <path d="M13 1V3" stroke="black" stroke-width="1.5" stroke-linecap="round"/>
-                                </svg>
-                            </div>
-                        </div>
+                        <div class="orders-title">Pedidos en curso</div>
                     </div>
                     <div class="table-container">
                         <table class="orders-table">
@@ -245,15 +218,16 @@
                                     <th>Productos</th>
                                     <th>Total</th>
                                     <th>Estado</th>
+                                    <th>Acciones</th>
                                     <th>Fecha</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($pedidosRecientes as $pedido)
+                                @forelse ($pedidosTrabajo as $pedido)
                                     <tr>
                                         <td>#{{ $pedido->ped_id }}</td>
                                         <td>{{ trim(($pedido->cli_nom ?? '') . ' ' . ($pedido->cli_apellido ?? '')) ?: 'Cliente ocasional' }}</td>
-                                        <td>{{ $resumenPedidos[$pedido->ped_id] ?? 'Sin detalles' }}</td>
+                                        <td>{{ $resumenTrabajo[$pedido->ped_id] ?? 'Sin detalles' }}</td>
                                         <td>${{ number_format($pedido->ped_total, 0, ',', '.') }}</td>
                                         <td>
                                             @php
@@ -266,16 +240,27 @@
                                             @endphp
                                             <span class="status-badge {{ $statusClass }}">{{ $pedido->ped_est }}</span>
                                         </td>
+                                        <td>
+                                            @if ($pedido->ped_est === 'Pendiente')
+                                                <form method="POST" action="{{ route('repostero.pedidos.preparar', $pedido->ped_id) }}">
+                                                    @csrf
+                                                    <button class="primary-action-button" type="submit">Marcar Preparado</button>
+                                                </form>
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
                                         <td>{{ $pedido->ped_fec }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="empty-state">No hay pedidos recientes.</td>
+                                        <td colspan="7" class="empty-state">No hay pedidos pendientes o preparados.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
+                </div>
                 </div>
             </div>
         </div>

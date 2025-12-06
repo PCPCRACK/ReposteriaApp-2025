@@ -21,6 +21,9 @@
                     <div class="header-title">Compras</div>
                     <div class="header-subtitle">Historial de compras a proveedores</div>
                 </div>
+                <div class="header-actions">
+                    <a href="{{ route('admin.compras.create') }}" class="primary-action-button">Nueva compra</a>
+                </div>
             </div>
 
             <div class="table-container">
@@ -32,6 +35,7 @@
                             <th>Proveedor</th>
                             <th>Total</th>
                             <th>Detalle</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -42,6 +46,7 @@
                                 <td>{{ $compra->pro_nom }}</td>
                                 <td>${{ number_format($compra->com_tot, 0, ',', '.') }}</td>
                                 <td>{{ $compra->detalle ?? 'Sin detalle de ingredientes' }}</td>
+                                <td><a class="filter-button" href="{{ route('admin.compras.edit', $compra->com_id) }}">Editar</a></td>
                             </tr>
                         @empty
                             <tr>

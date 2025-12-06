@@ -12,6 +12,7 @@ class DashboardController extends Controller
     public function index()
     {
         $today = Carbon::today();
+        $invFilter = request('inv_filter');
 
         $pedidosActivos = DB::table('Pedido')
             ->whereIn('ped_est', ['Pendiente', 'Preparado'])
@@ -53,7 +54,7 @@ class DashboardController extends Controller
             ->select('dc.ing_id', DB::raw('MAX(c.com_fec) as last_date'))
             ->groupBy('dc.ing_id');
 
-        $estadoInventario = DB::table('Ingrediente as i')
+        $estadoInventarioQuery = DB::table('Ingrediente as i')
             ->leftJoinSub($latestPurchases, 'lp', function ($join) {
                 $join->on('i.ing_id', '=', 'lp.ing_id');
             })
@@ -84,8 +85,13 @@ class DashboardController extends Controller
                 'i.ing_um',
                 DB::raw('COALESCE(p.prov_nom, "Sin proveedor")')
             )
-            ->orderBy('i.ing_nom')
-            ->get();
+            ->orderBy('i.ing_nom');
+
+        if ($invFilter === 'low') {
+            $estadoInventarioQuery->havingRaw('MIN(i.ing_stock <= i.ing_reord)');
+        }
+
+        $estadoInventario = $estadoInventarioQuery->get();
 
         $pedidosRecientes = DB::table('Pedido as pe')
             ->leftJoin('Cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
@@ -106,6 +112,26 @@ class DashboardController extends Controller
 
         $resumenPedidos = $this->construirResumenPedidos($detallesRecientes);
 
+        $pedidosTrabajo = DB::table('Pedido as pe')
+            ->leftJoin('Cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
+            ->select('pe.ped_id', 'pe.ped_total', 'pe.ped_est', 'pe.ped_fec', 'c.cli_nom', 'c.cli_apellido')
+            ->whereIn('pe.ped_est', ['Pendiente', 'Preparado'])
+            ->orderByDesc('pe.ped_fec')
+            ->orderByDesc('pe.ped_id')
+            ->limit(15)
+            ->get();
+
+        $detallesTrabajo = DB::table('DetallePedido as dp')
+            ->join('ProductoPresentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
+            ->join('Producto as p', 'pp.pro_id', '=', 'p.pro_id')
+            ->join('Tamano as t', 'pp.tam_id', '=', 't.tam_id')
+            ->whereIn('dp.ped_id', $pedidosTrabajo->pluck('ped_id'))
+            ->select('dp.ped_id', 'p.pro_nom', 't.tam_nom', 'dp.dpe_can')
+            ->get()
+            ->groupBy('ped_id');
+
+        $resumenTrabajo = $this->construirResumenPedidos($detallesTrabajo);
+
         return view('repostero.dashboardRepostero', [
             'pedidosActivos' => $pedidosActivos,
             'pedidosPendientes' => $pedidosPendientes,
@@ -117,6 +143,9 @@ class DashboardController extends Controller
             'estadoInventario' => $estadoInventario,
             'pedidosRecientes' => $pedidosRecientes,
             'resumenPedidos' => $resumenPedidos,
+            'pedidosTrabajo' => $pedidosTrabajo,
+            'resumenTrabajo' => $resumenTrabajo,
+            'invFilter' => $invFilter,
         ]);
     }
 

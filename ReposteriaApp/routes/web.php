@@ -16,6 +16,11 @@ use App\Http\Controllers\Admin\RecetaController;
 use App\Http\Controllers\Admin\PedidoController;
 use App\Http\Controllers\Cajero\DashboardController as CajeroDashboardController;
 use App\Http\Controllers\Repostero\DashboardController as ReposteroDashboardController;
+use App\Http\Controllers\Cajero\ProductoController as CajeroProductoController;
+use App\Http\Controllers\Cajero\PedidoController as CajeroPedidoController;
+use App\Http\Controllers\Cajero\PagoController as CajeroPagoController;
+use App\Http\Controllers\Repostero\PedidoController as ReposteroPedidoController;
+use App\Http\Controllers\Repostero\RecetaController as ReposteroRecetaController;
 
 Route::get('/login', function() {
 
@@ -74,7 +79,7 @@ Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(functi
     Route::delete('presentaciones/{presentacion}', [ProductoController::class, 'destroyPresentacion'])->name('presentaciones.destroy');
 
     Route::resource('recetas', RecetaController::class)->only(['index']);
-    Route::resource('compras', CompraController::class)->only(['index']);
+    Route::resource('compras', CompraController::class)->only(['index','create','store','edit','update']);
     Route::resource('pagos', PagoController::class)->only(['index']);
 
 });
@@ -86,6 +91,13 @@ Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(functi
 Route::middleware(['role:cajero'])->prefix('cajero')->name('cajero.')->group(function () {
 
     Route::get('/dashboard', [CajeroDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/productos', [CajeroProductoController::class, 'index'])->name('productos.index');
+    Route::get('/pedidos', [CajeroPedidoController::class, 'index'])->name('pedidos.index');
+    Route::get('/pedidos/create', [CajeroPedidoController::class, 'create'])->name('pedidos.create');
+    Route::post('/pedidos', [CajeroPedidoController::class, 'store'])->name('pedidos.store');
+    Route::post('/pedidos/{pedido}/estado', [CajeroPedidoController::class, 'updateEstado'])->name('pedidos.estado');
+    Route::get('/pagos', [CajeroPagoController::class, 'index'])->name('pagos.index');
+    Route::post('/pagos', [CajeroPagoController::class, 'store'])->name('pagos.store');
 
 });
 
@@ -96,6 +108,7 @@ Route::middleware(['role:cajero'])->prefix('cajero')->name('cajero.')->group(fun
 Route::middleware(['role:repostero'])->prefix('repostero')->name('repostero.')->group(function () {
 
     Route::get('/dashboard', [ReposteroDashboardController::class, 'index'])->name('dashboard');
+    Route::post('/pedidos/{pedido}/preparar', [ReposteroPedidoController::class, 'preparar'])->name('pedidos.preparar');
+    Route::get('/recetas', [ReposteroRecetaController::class, 'index'])->name('recetas.index');
 
 });
-
