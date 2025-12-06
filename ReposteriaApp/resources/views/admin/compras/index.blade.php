@@ -43,7 +43,7 @@
                             <tr>
                                 <td>{{ $compra->com_id }}</td>
                                 <td>{{ $compra->com_fec }}</td>
-                                <td>{{ $compra->pro_nom }}</td>
+                                <td>{{ $compra->prov_nom }}</td>
                                 <td>${{ number_format($compra->com_tot, 0, ',', '.') }}</td>
                                 <td>{{ $compra->detalle ?? 'Sin detalle de ingredientes' }}</td>
                                 <td><a class="filter-button" href="{{ route('admin.compras.edit', $compra->com_id) }}">Editar</a></td>

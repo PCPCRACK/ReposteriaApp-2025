@@ -34,14 +34,16 @@
 
             <div class="grid-2-cols">
                 <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">Registrar pago</div>
-                        <div class="card-subtitle">Pedidos sin pago</div>
+                    <div class="card-header" style="justify-content: space-between; align-items:center;">
+                        <div>
+                            <div class="card-title">Registrar pago</div>
+                            <div class="card-subtitle">Pedidos sin pago</div>
+                        </div>
                     </div>
                     <form class="form-grid" method="POST" action="{{ route('cajero.pagos.store') }}">
                         @csrf
                         <label class="form-label">Pedido</label>
-                        <select name="ped_id" class="form-input" required>
+                        <select name="ped_id" id="ped_id_select" class="form-input" required>
                             <option value="">Seleccione un pedido</option>
                             @foreach ($pedidosSinPago as $pedido)
                                 <option value="{{ $pedido->ped_id }}">
@@ -65,11 +67,50 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">Pagos registrados</div>
+                    <div class="card-header" style="justify-content: space-between; align-items: center;">
+                        <div>
+                            <div class="card-title">Pendientes por pagar</div>
+                            <div class="card-subtitle">Marca como pagado rápidamente</div>
+                        </div>
                     </div>
-                    <div class="table-container">
-                        <table class="inventory-table">
+                    <div class="table-container compact" style="max-height:280px; overflow-y:auto;">
+                        <table class="inventory-table" id="pendientes-table">
+                            <thead>
+                                <tr>
+                                    <th>Pedido</th>
+                                    <th>Cliente</th>
+                                    <th>Total</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($pedidosSinPago as $pedido)
+                                    <tr>
+                                        <td>#{{ $pedido->ped_id }}</td>
+                                        <td>{{ trim(($pedido->cli_nom ?? '') . ' ' . ($pedido->cli_apellido ?? '')) ?: 'Cliente ocasional' }}</td>
+                                        <td>${{ number_format($pedido->ped_total, 0, ',', '.') }}</td>
+                                        <td><button class="filter-button set-pago" type="button" data-pedido="{{ $pedido->ped_id }}">Registrar pago</button></td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="4" class="empty-state">No hay pedidos pendientes de pago.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header" style="justify-content: space-between; align-items: center;">
+                        <div>
+                            <div class="card-title">Pagos registrados</div>
+                            <div class="card-subtitle">Filtrar por ID, fecha o cliente</div>
+                        </div>
+                        <form class="filters-row" style="gap:8px;">
+                            <input type="search" id="pago-search" class="form-input" placeholder="Buscar...">
+                        </form>
+                    </div>
+                    <div class="table-container compact" style="max-height:280px; overflow-y:auto;">
+                        <table class="inventory-table" id="pagos-table">
                             <thead>
                                 <tr>
                                     <th>ID Pago</th>
@@ -102,5 +143,33 @@
             </div>
         </div>
     </div>
+
+<script>
+    (function(){
+        const input = document.getElementById('pago-search');
+        const rows = Array.from(document.querySelectorAll('#pagos-table tbody tr'));
+        if (input) {
+            input.addEventListener('input', () => {
+                const q = input.value.toLowerCase();
+                rows.forEach(row => {
+                    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+                });
+            });
+        }
+
+        const setBtns = document.querySelectorAll('.set-pago');
+        const selectPedido = document.getElementById('ped_id_select');
+        setBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.pedido;
+                if (selectPedido) {
+                    selectPedido.value = id;
+                    selectPedido.focus();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
+        });
+    })();
+</script>
 </body>
 </html>

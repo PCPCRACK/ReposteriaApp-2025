@@ -118,12 +118,17 @@
                 <!-- Inventory and Orders -->
                 <div class="grid-2-cols">
                     <div class="card">
-                        <div class="card-header">
-                            <div class="card-title">Estado del Inventario</div>
-                            <div class="card-subtitle">Revisión de niveles de ingredientes</div>
+                        <div class="card-header" style="justify-content: space-between; align-items: center;">
+                            <div>
+                                <div class="card-title">Estado del Inventario</div>
+                                <div class="card-subtitle">Resumen de ingredientes</div>
+                            </div>
+                            <div class="filters-row" style="gap: 8px;">
+                                <input type="search" id="admin-inv-filter" class="form-input" placeholder="Buscar ingrediente...">
+                            </div>
                         </div>
-                        <div class="table-container">
-                            <table class="inventory-table">
+                        <div class="table-container compact" style="max-height: 360px; overflow-y: auto;">
+                            <table class="inventory-table" id="admin-inv-table">
                                 <thead>
                                     <tr>
                                         <th>Ingrediente</th>
@@ -159,12 +164,18 @@
                     </div>
 
                     <div class="card">
-                        <div class="card-header">
-                            <div class="card-title">Pedidos Recientes</div>
-                            <div class="card-subtitle">Últimas ventas registradas</div>
+                        <div class="card-header" style="justify-content: space-between; align-items: center;">
+                            <div>
+                                <div class="card-title">Pedidos Recientes</div>
+                                <div class="card-subtitle">Últimas ventas registradas</div>
+                            </div>
+                            <div class="filters-row" style="gap: 8px;">
+                                <input type="search" id="admin-pedidos-filter" class="form-input" placeholder="Buscar por cliente o estado">
+                                <span class="tag pill">Live</span>
+                            </div>
                         </div>
-                        <div class="table-container">
-                            <table class="inventory-table">
+                        <div class="table-container compact" style="max-height: 360px; overflow-y: auto;">
+                            <table class="inventory-table" id="admin-pedidos-table">
                                 <thead>
                                     <tr>
                                         <th>ID</th>
@@ -208,6 +219,124 @@
             </div>
         </div>
     </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ventasData = @json($ventasPorMes);
+    const productosData = @json($productosMasVendidos);
+
+    const palette = [
+        '#2563EB', '#EA580C', '#16A34A', '#9333EA', '#F59E0B', '#0EA5E9',
+        '#EF4444', '#10B981', '#8B5CF6', '#EC4899', '#F97316', '#22D3EE'
+    ];
+
+    function buildPieChart(canvasId, labels, values) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+
+        const colors = labels.map((_, idx) => palette[idx % palette.length]);
+
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed;
+                                return `${context.label}: ${value.toLocaleString()}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function buildBarChart(canvasId, labels, values) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+
+        const colors = labels.map((_, idx) => palette[idx % palette.length]);
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                return `${context.label}: ${value.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
+    if (ventasData.length) {
+        const ventasLabels = ventasData.map(item => item.mes);
+        const ventasValues = ventasData.map(item => Number(item.total));
+        buildBarChart('ventasBarChart', ventasLabels, ventasValues);
+    }
+
+    if (productosData.length) {
+        const productoLabels = productosData.map(item => `${item.pro_nom} (${item.tam_nom})`);
+        const productoValues = productosData.map(item => Number(item.cantidad));
+        buildPieChart('productosPieChart', productoLabels, productoValues);
+    }
+
+    // filtros locales
+    (function(){
+        const invInput = document.getElementById('admin-inv-filter');
+        const invRows = Array.from(document.querySelectorAll('#admin-inv-table tbody tr'));
+        if (invInput) {
+            invInput.addEventListener('input', () => {
+                const q = invInput.value.toLowerCase();
+                invRows.forEach(r => {
+                    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+                });
+            });
+        }
+
+        const pedInput = document.getElementById('admin-pedidos-filter');
+        const pedRows = Array.from(document.querySelectorAll('#admin-pedidos-table tbody tr'));
+        if (pedInput) {
+            pedInput.addEventListener('input', () => {
+                const q = pedInput.value.toLowerCase();
+                pedRows.forEach(r => {
+                    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+                });
+            });
+        }
+    })();
+</script>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -304,5 +433,32 @@
         const productoValues = topProductos.map(item => Number(item.cantidad));
         buildPieChart('productosPieChart', productoLabels, productoValues);
     }
+
+    // Filtros locales en tablas
+    (function(){
+        const invInput = document.getElementById('admin-inv-filter');
+        const invRows = Array.from(document.querySelectorAll('#admin-inv-table tbody tr'));
+        if (invInput) {
+            invInput.addEventListener('input', () => {
+                const q = invInput.value.toLowerCase();
+                invRows.forEach(r => {
+                    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+                });
+            });
+        }
+
+        const pedInput = document.getElementById('admin-pedidos-filter');
+        const pedRows = Array.from(document.querySelectorAll('#admin-pedidos-table tbody tr'));
+        if (pedInput) {
+            pedInput.addEventListener('input', () => {
+                const q = pedInput.value.toLowerCase();
+                pedRows.forEach(r => {
+                    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+                });
+            });
+        }
+    })();
 </script>
 </html>
+
+

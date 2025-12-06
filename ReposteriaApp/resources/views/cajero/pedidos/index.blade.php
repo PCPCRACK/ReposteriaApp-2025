@@ -19,15 +19,15 @@
             </div>
 
             <div class="card">
-                <div class="card-header">
+                <div class="card-header" style="align-items:center; justify-content: space-between;">
                     <div class="card-title">Listado de pedidos</div>
                     <div class="card-subtitle">Últimos registros</div>
                     <div class="header-actions">
                         <a class="primary-action-button" href="{{ route('cajero.pedidos.create') }}">Nuevo pedido</a>
                     </div>
                 </div>
-                <div class="table-container">
-                    <form class="filters-row" method="GET" action="{{ route('cajero.pedidos.index') }}">
+                <div class="table-container compact">
+                    <form class="filters-row" style="padding:10px 0; gap:8px;" method="GET" action="{{ route('cajero.pedidos.index') }}">
                         <div class="inventory-search">
                             <select name="estado" class="form-input">
                                 <option value="todos">Todos los estados</option>

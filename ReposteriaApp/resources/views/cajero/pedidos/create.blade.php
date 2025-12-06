@@ -24,12 +24,12 @@
                     <div class="header-subtitle">Completa el formulario para registrar un nuevo pedido.</div>
                 </div>
                 <div class="header-actions">
-                    <a href="{{ route('admin.pedidos.index') }}" class="cancel-button">Cancelar</a>
+                    <a href="{{ route('cajero.pedidos.index') }}" class="cancel-button">Cancelar</a>
                 </div>
             </div>
             
             <div class="form-container" style="max-width: 900px; margin: 24px auto;">
-                <form action="{{ route('admin.pedidos.store') }}" method="POST" id="create-order-form"
+                <form action="{{ route('cajero.pedidos.store') }}" method="POST" id="create-order-form"
                     data-clientes='@json($clientes)'
                     data-productos='@json($productos)'>
                     @csrf
