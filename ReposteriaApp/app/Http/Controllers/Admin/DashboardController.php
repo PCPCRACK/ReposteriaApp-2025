@@ -13,26 +13,26 @@ class DashboardController extends Controller
     {
         $today = Carbon::today();
 
-        $ventasHoy = DB::table('Pedido')
+        $ventasHoy = DB::table('vw_pedido')
             ->whereDate('ped_fec', $today)
             ->where('ped_est', 'Entregado')
             ->sum('ped_total');
 
-        $pedidosActivos = DB::table('Pedido')
+        $pedidosActivos = DB::table('vw_pedido')
             ->where('ped_est', 'Pendiente')
             ->count();
 
-        $totalProductos = DB::table('Producto')->count();
+        $totalProductos = DB::table('vw_producto')->count();
 
-        $productosBajoStock = DB::table('Ingrediente')
+        $productosBajoStock = DB::table('vw_ingrediente')
             ->whereColumn('ing_stock', '<=', 'ing_reord')
             ->count();
 
-        $empleados = DB::table('Empleado')->count();
-        $cajeros = DB::table('Cajero')->count();
-        $reposteros = DB::table('Repostero')->count();
+        $empleados = DB::table('vw_empleado')->count();
+        $cajeros = DB::table('vw_cajero')->count();
+        $reposteros = DB::table('vw_repostero')->count();
 
-        $ventasPorMes = DB::table('Pedido')
+        $ventasPorMes = DB::table('vw_pedido')
             ->select(
                 DB::raw("DATE_FORMAT(ped_fec, '%Y-%m') as mes"),
                 DB::raw('SUM(ped_total) as total')
@@ -42,10 +42,10 @@ class DashboardController extends Controller
             ->orderBy('mes')
             ->get();
 
-        $productosMasVendidos = DB::table('DetallePedido as dp')
-            ->join('ProductoPresentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
-            ->join('Producto as p', 'pp.pro_id', '=', 'p.pro_id')
-            ->join('Tamano as t', 'pp.tam_id', '=', 't.tam_id')
+        $productosMasVendidos = DB::table('vw_detalle_pedido as dp')
+            ->join('vw_producto_presentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
+            ->join('vw_producto as p', 'pp.pro_id', '=', 'p.pro_id')
+            ->join('vw_tamano as t', 'pp.tam_id', '=', 't.tam_id')
             ->select(
                 'p.pro_nom',
                 't.tam_nom',
@@ -56,22 +56,22 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        $latestPurchases = DB::table('DetalleCompra as dc')
-            ->join('Compra as c', 'dc.com_id', '=', 'c.com_id')
+        $latestPurchases = DB::table('vw_detalle_compra as dc')
+            ->join('vw_compra as c', 'dc.com_id', '=', 'c.com_id')
             ->select('dc.ing_id', DB::raw('MAX(c.com_fec) as last_date'))
             ->groupBy('dc.ing_id');
 
-        $estadoInventario = DB::table('Ingrediente as i')
+        $estadoInventario = DB::table('vw_ingrediente as i')
             ->leftJoinSub($latestPurchases, 'lp', function ($join) {
                 $join->on('i.ing_id', '=', 'lp.ing_id');
             })
-            ->leftJoin('DetalleCompra as dc', function ($join) {
+            ->leftJoin('vw_detalle_compra as dc', function ($join) {
                 $join->on('i.ing_id', '=', 'dc.ing_id');
             })
-            ->leftJoin('Compra as c', function ($join) {
+            ->leftJoin('vw_compra as c', function ($join) {
                 $join->on('dc.com_id', '=', 'c.com_id');
             })
-            ->leftJoin('Proveedor as p', 'c.prov_id', '=', 'p.prov_id')
+            ->leftJoin('vw_proveedor as p', 'c.prov_id', '=', 'p.prov_id')
             ->where(function ($query) {
                 $query->whereNull('lp.last_date')
                     ->orWhereColumn('c.com_fec', 'lp.last_date');
@@ -95,18 +95,18 @@ class DashboardController extends Controller
             ->orderBy('i.ing_nom')
             ->get();
 
-        $pedidosRecientes = DB::table('Pedido as pe')
-            ->leftJoin('Cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
+        $pedidosRecientes = DB::table('vw_pedido as pe')
+            ->leftJoin('vw_cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
             ->select('pe.ped_id', 'pe.ped_total', 'pe.ped_est', 'pe.ped_fec', 'c.cli_nom', 'c.cli_apellido')
             ->orderByDesc('pe.ped_fec')
             ->orderByDesc('pe.ped_id')
             ->limit(5)
             ->get();
 
-        $detallesRecientes = DB::table('DetallePedido as dp')
-            ->join('ProductoPresentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
-            ->join('Producto as p', 'pp.pro_id', '=', 'p.pro_id')
-            ->join('Tamano as t', 'pp.tam_id', '=', 't.tam_id')
+        $detallesRecientes = DB::table('vw_detalle_pedido as dp')
+            ->join('vw_producto_presentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
+            ->join('vw_producto as p', 'pp.pro_id', '=', 'p.pro_id')
+            ->join('vw_tamano as t', 'pp.tam_id', '=', 't.tam_id')
             ->whereIn('dp.ped_id', $pedidosRecientes->pluck('ped_id'))
             ->select('dp.ped_id', 'p.pro_nom', 't.tam_nom', 'dp.dpe_can')
             ->get()

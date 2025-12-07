@@ -9,12 +9,10 @@ class ProductoController extends Controller
 {
     public function index()
     {
-        $productos = DB::table('Producto as p')
-            ->leftJoin('ProductoPresentacion as pp', 'p.pro_id', '=', 'pp.pro_id')
-            ->leftJoin('Tamano as t', 'pp.tam_id', '=', 't.tam_id')
-            ->select('p.pro_id', 'p.pro_nom', 'pp.prp_id', 'pp.prp_precio', 't.tam_nom')
-            ->orderBy('p.pro_nom')
-            ->orderBy('t.tam_nom')
+        $productos = DB::table('vw_productos_presentaciones_ext')
+            ->select('pro_id', 'pro_nom', 'prp_id', 'prp_precio', 'tam_nom')
+            ->orderBy('pro_nom')
+            ->orderBy('tam_nom')
             ->get()
             ->groupBy('pro_id');
 

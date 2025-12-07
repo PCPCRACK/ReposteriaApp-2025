@@ -10,19 +10,17 @@ class CompraController extends Controller
 {
     public function index()
     {
-        $compras = DB::table('Compra as c')
-            ->join('Proveedor as p', 'c.prov_id', '=', 'p.prov_id')
-            ->leftJoin('DetalleCompra as dc', 'c.com_id', '=', 'dc.com_id')
-            ->leftJoin('Ingrediente as i', 'dc.ing_id', '=', 'i.ing_id')
+        $compras = DB::table('vw_compras_detalle_ext as cde')
+            ->join('vw_proveedor as p', 'cde.prov_id', '=', 'p.prov_id')
             ->select(
-                'c.com_id',
-                'c.com_fec',
-                'c.com_tot',
+                'cde.com_id',
+                'cde.com_fec',
+                'cde.com_tot',
                 'p.prov_nom',
-                DB::raw("GROUP_CONCAT(CONCAT(i.ing_nom, ' x', dc.dco_can, ' ', i.ing_um) SEPARATOR ', ') as detalle")
+                DB::raw("GROUP_CONCAT(CONCAT(cde.ing_nom, ' x', cde.dco_can, ' ', cde.ing_um) SEPARATOR ', ') as detalle")
             )
-            ->groupBy('c.com_id', 'c.com_fec', 'c.com_tot', 'p.prov_nom')
-            ->orderByDesc('c.com_fec')
+            ->groupBy('cde.com_id', 'cde.com_fec', 'cde.com_tot', 'p.prov_nom')
+            ->orderByDesc('cde.com_fec')
             ->get();
 
         return view('admin.compras.index', compact('compras'));
@@ -30,8 +28,8 @@ class CompraController extends Controller
 
     public function create()
     {
-        $proveedores = DB::table('Proveedor')->orderBy('prov_nom')->get();
-        $ingredientes = DB::table('Ingrediente')->orderBy('ing_nom')->get();
+        $proveedores = DB::table('vw_proveedor')->orderBy('prov_nom')->get();
+        $ingredientes = DB::table('vw_ingrediente')->orderBy('ing_nom')->get();
         return view('admin.compras.create', compact('proveedores', 'ingredientes'));
     }
 
@@ -52,18 +50,20 @@ class CompraController extends Controller
                 return $carry + ($item['dco_can'] * $item['dco_pre']);
             }, 0);
 
-            $comId = DB::table('Compra')->insertGetId([
-                'prov_id' => $request->prov_id,
-                'com_fec' => $request->com_fec,
-                'com_tot' => $total,
+            DB::statement('CALL sp_crear_compra(?, ?, ?, @new_com_id)', [
+                $request->prov_id,
+                $request->com_fec,
+                $total,
             ]);
 
+            $comId = DB::select('SELECT @new_com_id as com_id')[0]->com_id ?? null;
+
             foreach ($request->items as $item) {
-                DB::table('DetalleCompra')->insert([
-                    'com_id' => $comId,
-                    'ing_id' => $item['ing_id'],
-                    'dco_can' => $item['dco_can'],
-                    'dco_pre' => $item['dco_pre'],
+                DB::statement('CALL sp_agregar_detalle_compra(?, ?, ?, ?)', [
+                    $comId,
+                    $item['ing_id'],
+                    $item['dco_can'],
+                    $item['dco_pre'],
                 ]);
             }
 
@@ -77,17 +77,17 @@ class CompraController extends Controller
 
     public function edit($id)
     {
-        $compra = DB::table('Compra')->where('com_id', $id)->first();
+        $compra = DB::table('vw_compra')->where('com_id', $id)->first();
         abort_unless($compra, 404);
 
-        $detalles = DB::table('DetalleCompra as dc')
-            ->join('Ingrediente as i', 'dc.ing_id', '=', 'i.ing_id')
+        $detalles = DB::table('vw_detalle_compra as dc')
+            ->join('vw_ingrediente as i', 'dc.ing_id', '=', 'i.ing_id')
             ->where('dc.com_id', $id)
             ->select('dc.ing_id', 'dc.dco_can', 'dc.dco_pre', 'i.ing_nom')
             ->get();
 
-        $proveedores = DB::table('Proveedor')->orderBy('prov_nom')->get();
-        $ingredientes = DB::table('Ingrediente')->orderBy('ing_nom')->get();
+        $proveedores = DB::table('vw_proveedor')->orderBy('prov_nom')->get();
+        $ingredientes = DB::table('vw_ingrediente')->orderBy('ing_nom')->get();
 
         return view('admin.compras.edit', compact('compra', 'detalles', 'proveedores', 'ingredientes'));
     }
@@ -109,22 +109,21 @@ class CompraController extends Controller
                 return $carry + ($item['dco_can'] * $item['dco_pre']);
             }, 0);
 
-            DB::table('Compra')
-                ->where('com_id', $id)
-                ->update([
-                    'prov_id' => $request->prov_id,
-                    'com_fec' => $request->com_fec,
-                    'com_tot' => $total,
-                ]);
+            DB::statement('CALL sp_actualizar_compra(?, ?, ?, ?)', [
+                $id,
+                $request->prov_id,
+                $request->com_fec,
+                $total,
+            ]);
 
-            DB::table('DetalleCompra')->where('com_id', $id)->delete();
+            DB::statement('CALL sp_eliminar_detalles_compra(?)', [$id]);
 
             foreach ($request->items as $item) {
-                DB::table('DetalleCompra')->insert([
-                    'com_id' => $id,
-                    'ing_id' => $item['ing_id'],
-                    'dco_can' => $item['dco_can'],
-                    'dco_pre' => $item['dco_pre'],
+                DB::statement('CALL sp_agregar_detalle_compra(?, ?, ?, ?)', [
+                    $id,
+                    $item['ing_id'],
+                    $item['dco_can'],
+                    $item['dco_pre'],
                 ]);
             }
 
@@ -138,11 +137,6 @@ class CompraController extends Controller
 
     private function actualizarStockCompra(int $comId): void
     {
-        $detalles = DB::table('DetalleCompra')->where('com_id', $comId)->get();
-        foreach ($detalles as $detalle) {
-            DB::table('Ingrediente')
-                ->where('ing_id', $detalle->ing_id)
-                ->update(['ing_stock' => DB::raw('ing_stock + ' . $detalle->dco_can)]);
-        }
+        DB::statement('CALL sp_aplicar_stock_compra(?)', [$comId]);
     }
 }

@@ -16,25 +16,25 @@ class DashboardController extends Controller
         $estadoFiltro = $request->query('estado');
         $fechaFiltro = $request->query('fecha');
 
-        $dineroEnCaja = DB::table('Pago as pa')
-            ->join('Pedido as pe', 'pa.ped_id', '=', 'pe.ped_id')
+        $dineroEnCaja = DB::table('vw_pago as pa')
+            ->join('vw_pedido as pe', 'pa.ped_id', '=', 'pe.ped_id')
             ->whereDate('pa.pag_fec', $today)
             ->sum('pe.ped_total');
 
-        $pedidosActivos = DB::table('Pedido')
+        $pedidosActivos = DB::table('vw_pedido')
             ->whereIn('ped_est', ['Pendiente', 'Preparado'])
             ->count();
 
-        $pedidosPendientes = DB::table('Pedido')
+        $pedidosPendientes = DB::table('vw_pedido')
             ->where('ped_est', 'Pendiente')
             ->count();
 
-        $totalProductos = DB::table('Producto')->count();
+        $totalProductos = DB::table('vw_producto')->count();
 
-        $productosMasVendidos = DB::table('DetallePedido as dp')
-            ->join('ProductoPresentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
-            ->join('Producto as p', 'pp.pro_id', '=', 'p.pro_id')
-            ->join('Tamano as t', 'pp.tam_id', '=', 't.tam_id')
+        $productosMasVendidos = DB::table('vw_detalle_pedido as dp')
+            ->join('vw_producto_presentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
+            ->join('vw_producto as p', 'pp.pro_id', '=', 'p.pro_id')
+            ->join('vw_tamano as t', 'pp.tam_id', '=', 't.tam_id')
             ->select(
                 'p.pro_nom',
                 't.tam_nom',
@@ -45,7 +45,7 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $estadoPedidos = DB::table('Pedido')
+        $estadoPedidos = DB::table('vw_pedido')
             ->select(
                 'ped_est',
                 DB::raw('COUNT(*) as cantidad'),
@@ -54,8 +54,8 @@ class DashboardController extends Controller
             ->groupBy('ped_est')
             ->get();
 
-        $pedidosRecientesQuery = DB::table('Pedido as pe')
-            ->leftJoin('Cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
+        $pedidosRecientesQuery = DB::table('vw_pedido as pe')
+            ->leftJoin('vw_cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
             ->select('pe.ped_id', 'pe.ped_total', 'pe.ped_est', 'pe.ped_fec', 'c.cli_nom', 'c.cli_apellido')
             ->orderByDesc('pe.ped_fec')
             ->orderByDesc('pe.ped_id')
@@ -71,10 +71,10 @@ class DashboardController extends Controller
 
         $pedidosRecientes = $pedidosRecientesQuery->get();
 
-        $detallesRecientes = DB::table('DetallePedido as dp')
-            ->join('ProductoPresentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
-            ->join('Producto as p', 'pp.pro_id', '=', 'p.pro_id')
-            ->join('Tamano as t', 'pp.tam_id', '=', 't.tam_id')
+        $detallesRecientes = DB::table('vw_detalle_pedido as dp')
+            ->join('vw_producto_presentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
+            ->join('vw_producto as p', 'pp.pro_id', '=', 'p.pro_id')
+            ->join('vw_tamano as t', 'pp.tam_id', '=', 't.tam_id')
             ->whereIn('dp.ped_id', $pedidosRecientes->pluck('ped_id'))
             ->select('dp.ped_id', 'p.pro_nom', 't.tam_nom', 'dp.dpe_can')
             ->get()

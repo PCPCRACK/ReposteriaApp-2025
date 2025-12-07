@@ -6,20 +6,47 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use App\Models\Cliente;
-use App\Models\Producto;
-use App\Models\Cajero;
-use App\Models\Pedido;
-use App\Models\DetallePedido;
 
 class PedidoController extends Controller
 {
     public function create()
     {
-        $clientes = Cliente::all();
-        $productos = Producto::with('presentaciones.tamano')->get();
-        $cajeros = Cajero::with('empleado')->get();
-        return view('cajero.pedidos.create', compact('clientes', 'productos', 'cajeros'));
+        $clientes = DB::table('vw_cliente')->get();
+
+        $presentaciones = DB::table('vw_productos_presentaciones_ext')
+            ->orderBy('pro_nom')
+            ->orderBy('tam_nom')
+            ->get()
+            ->groupBy('pro_id')
+            ->map(function ($items) {
+                return (object) [
+                    'pro_id' => $items->first()->pro_id,
+                    'pro_nom' => $items->first()->pro_nom,
+                    'presentaciones' => $items->map(function ($item) {
+                        return (object) [
+                            'prp_id' => $item->prp_id,
+                            'prp_precio' => $item->prp_precio,
+                            'tamano' => (object) [
+                                'tam_nom' => $item->tam_nom,
+                                'tam_factor' => $item->tam_factor,
+                            ],
+                        ];
+                    })->values()->all(),
+                ];
+            })
+            ->values();
+
+        $cajeros = DB::table('vw_cajero as c')
+            ->join('vw_empleado as e', 'c.emp_id', '=', 'e.emp_id')
+            ->select('c.emp_id', 'e.emp_nom')
+            ->orderBy('e.emp_nom')
+            ->get();
+
+        return view('cajero.pedidos.create', [
+            'clientes' => $clientes,
+            'productos' => $presentaciones,
+            'cajeros' => $cajeros,
+        ]);
     }
 
     public function store(Request $request)
@@ -38,21 +65,23 @@ class PedidoController extends Controller
                 return $carry + ($item['quantity'] * $item['price']);
             }, 0);
 
-            $pedido = Pedido::create([
-                'cli_cedula' => $request->cli_cedula,
-                'emp_id' => $request->emp_id,
-                'ped_fec' => now()->toDateString(),
-                'ped_hora' => now()->toTimeString(),
-                'ped_est' => 'Pendiente',
-                'ped_total' => $total,
+            DB::statement('CALL sp_crear_pedido(?, ?, ?, ?, ?, ?, @new_ped_id)', [
+                $request->cli_cedula,
+                $request->emp_id,
+                'Pendiente',
+                $total,
+                now()->toDateString(),
+                now()->toTimeString(),
             ]);
 
+            $pedidoId = DB::select('SELECT @new_ped_id as ped_id')[0]->ped_id ?? null;
+
             foreach ($request->items as $item) {
-                DetallePedido::create([
-                    'ped_id' => $pedido->ped_id,
-                    'prp_id' => $item['prp_id'],
-                    'dpe_can' => $item['quantity'],
-                    'dpe_subtotal' => $item['quantity'] * $item['price'],
+                DB::statement('CALL sp_agregar_detalle_pedido(?, ?, ?, ?)', [
+                    $pedidoId,
+                    $item['prp_id'],
+                    $item['quantity'],
+                    $item['quantity'] * $item['price'],
                 ]);
             }
         });
@@ -65,8 +94,8 @@ class PedidoController extends Controller
         $estado = $request->query('estado');
         $fecha = $request->query('fecha');
 
-        $query = DB::table('Pedido as pe')
-            ->leftJoin('Cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
+        $query = DB::table('vw_pedido as pe')
+            ->leftJoin('vw_cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
             ->select('pe.ped_id', 'pe.ped_total', 'pe.ped_est', 'pe.ped_fec', 'c.cli_nom', 'c.cli_apellido')
             ->orderByDesc('pe.ped_fec')
             ->orderByDesc('pe.ped_id');
@@ -81,10 +110,10 @@ class PedidoController extends Controller
 
         $pedidos = $query->paginate(10)->withQueryString();
 
-        $detalles = DB::table('DetallePedido as dp')
-            ->join('ProductoPresentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
-            ->join('Producto as p', 'pp.pro_id', '=', 'p.pro_id')
-            ->join('Tamano as t', 'pp.tam_id', '=', 't.tam_id')
+        $detalles = DB::table('vw_detalle_pedido as dp')
+            ->join('vw_producto_presentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
+            ->join('vw_producto as p', 'pp.pro_id', '=', 'p.pro_id')
+            ->join('vw_tamano as t', 'pp.tam_id', '=', 't.tam_id')
             ->whereIn('dp.ped_id', $pedidos->pluck('ped_id'))
             ->select('dp.ped_id', 'p.pro_nom', 't.tam_nom', 'dp.dpe_can')
             ->get()
@@ -106,8 +135,9 @@ class PedidoController extends Controller
             'ped_est' => 'required|in:Pendiente,Preparado,Entregado,Anulado',
         ]);
 
-        DB::table('Pedido')->where('ped_id', $pedidoId)->update([
-            'ped_est' => $request->ped_est,
+        DB::statement('CALL sp_actualizar_estado_pedido(?, ?)', [
+            $pedidoId,
+            $request->ped_est,
         ]);
 
         return back()->with('success', 'Estado actualizado.');

@@ -48,7 +48,7 @@
                             <select name="emp_id" id="emp_id" class="form-input" required>
                                 <option value="">Seleccione un cajero</option>
                                 @foreach ($cajeros as $cajero)
-                                    <option value="{{ $cajero->emp_id }}">{{ $cajero->empleado->emp_nom }}</option>
+                                    <option value="{{ $cajero->emp_id }}">{{ $cajero->emp_nom }}</option>
                                 @endforeach
                             </select>
                         </div>

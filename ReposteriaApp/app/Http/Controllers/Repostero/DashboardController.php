@@ -14,31 +14,31 @@ class DashboardController extends Controller
         $today = Carbon::today();
         $invFilter = request('inv_filter');
 
-        $pedidosActivos = DB::table('Pedido')
+        $pedidosActivos = DB::table('vw_pedido')
             ->whereIn('ped_est', ['Pendiente', 'Preparado'])
             ->count();
 
-        $pedidosPendientes = DB::table('Pedido')
+        $pedidosPendientes = DB::table('vw_pedido')
             ->where('ped_est', 'Pendiente')
             ->count();
 
-        $totalProductos = DB::table('Producto')->count();
+        $totalProductos = DB::table('vw_producto')->count();
 
-        $totalIngredientes = DB::table('Ingrediente')->count();
+        $totalIngredientes = DB::table('vw_ingrediente')->count();
 
-        $ingredientesBajoStock = DB::table('Ingrediente')
+        $ingredientesBajoStock = DB::table('vw_ingrediente')
             ->whereColumn('ing_stock', '<=', 'ing_reord')
             ->count();
 
-        $stockChart = DB::table('Ingrediente')
+        $stockChart = DB::table('vw_ingrediente')
             ->select('ing_nom', 'ing_stock', 'ing_reord')
             ->orderBy('ing_nom')
             ->get();
 
-        $productosMasVendidos = DB::table('DetallePedido as dp')
-            ->join('ProductoPresentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
-            ->join('Producto as p', 'pp.pro_id', '=', 'p.pro_id')
-            ->join('Tamano as t', 'pp.tam_id', '=', 't.tam_id')
+        $productosMasVendidos = DB::table('vw_detalle_pedido as dp')
+            ->join('vw_producto_presentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
+            ->join('vw_producto as p', 'pp.pro_id', '=', 'p.pro_id')
+            ->join('vw_tamano as t', 'pp.tam_id', '=', 't.tam_id')
             ->select(
                 'p.pro_nom',
                 't.tam_nom',
@@ -49,22 +49,22 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $latestPurchases = DB::table('DetalleCompra as dc')
-            ->join('Compra as c', 'dc.com_id', '=', 'c.com_id')
+        $latestPurchases = DB::table('vw_detalle_compra as dc')
+            ->join('vw_compra as c', 'dc.com_id', '=', 'c.com_id')
             ->select('dc.ing_id', DB::raw('MAX(c.com_fec) as last_date'))
             ->groupBy('dc.ing_id');
 
-        $estadoInventarioQuery = DB::table('Ingrediente as i')
+        $estadoInventarioQuery = DB::table('vw_ingrediente as i')
             ->leftJoinSub($latestPurchases, 'lp', function ($join) {
                 $join->on('i.ing_id', '=', 'lp.ing_id');
             })
-            ->leftJoin('DetalleCompra as dc', function ($join) {
+            ->leftJoin('vw_detalle_compra as dc', function ($join) {
                 $join->on('i.ing_id', '=', 'dc.ing_id');
             })
-            ->leftJoin('Compra as c', function ($join) {
+            ->leftJoin('vw_compra as c', function ($join) {
                 $join->on('dc.com_id', '=', 'c.com_id');
             })
-            ->leftJoin('Proveedor as p', 'c.prov_id', '=', 'p.prov_id')
+            ->leftJoin('vw_proveedor as p', 'c.prov_id', '=', 'p.prov_id')
             ->where(function ($query) {
                 $query->whereNull('lp.last_date')
                     ->orWhereColumn('c.com_fec', 'lp.last_date');
@@ -93,18 +93,18 @@ class DashboardController extends Controller
 
         $estadoInventario = $estadoInventarioQuery->get();
 
-        $pedidosRecientes = DB::table('Pedido as pe')
-            ->leftJoin('Cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
+        $pedidosRecientes = DB::table('vw_pedido as pe')
+            ->leftJoin('vw_cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
             ->select('pe.ped_id', 'pe.ped_total', 'pe.ped_est', 'pe.ped_fec', 'c.cli_nom', 'c.cli_apellido')
             ->orderByDesc('pe.ped_fec')
             ->orderByDesc('pe.ped_id')
             ->limit(5)
             ->get();
 
-        $detallesRecientes = DB::table('DetallePedido as dp')
-            ->join('ProductoPresentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
-            ->join('Producto as p', 'pp.pro_id', '=', 'p.pro_id')
-            ->join('Tamano as t', 'pp.tam_id', '=', 't.tam_id')
+        $detallesRecientes = DB::table('vw_detalle_pedido as dp')
+            ->join('vw_producto_presentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
+            ->join('vw_producto as p', 'pp.pro_id', '=', 'p.pro_id')
+            ->join('vw_tamano as t', 'pp.tam_id', '=', 't.tam_id')
             ->whereIn('dp.ped_id', $pedidosRecientes->pluck('ped_id'))
             ->select('dp.ped_id', 'p.pro_nom', 't.tam_nom', 'dp.dpe_can')
             ->get()
@@ -112,8 +112,8 @@ class DashboardController extends Controller
 
         $resumenPedidos = $this->construirResumenPedidos($detallesRecientes);
 
-        $pedidosTrabajo = DB::table('Pedido as pe')
-            ->leftJoin('Cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
+        $pedidosTrabajo = DB::table('vw_pedido as pe')
+            ->leftJoin('vw_cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
             ->select('pe.ped_id', 'pe.ped_total', 'pe.ped_est', 'pe.ped_fec', 'c.cli_nom', 'c.cli_apellido')
             ->whereIn('pe.ped_est', ['Pendiente', 'Preparado'])
             ->orderByDesc('pe.ped_fec')
@@ -121,10 +121,10 @@ class DashboardController extends Controller
             ->limit(15)
             ->get();
 
-        $detallesTrabajo = DB::table('DetallePedido as dp')
-            ->join('ProductoPresentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
-            ->join('Producto as p', 'pp.pro_id', '=', 'p.pro_id')
-            ->join('Tamano as t', 'pp.tam_id', '=', 't.tam_id')
+        $detallesTrabajo = DB::table('vw_detalle_pedido as dp')
+            ->join('vw_producto_presentacion as pp', 'dp.prp_id', '=', 'pp.prp_id')
+            ->join('vw_producto as p', 'pp.pro_id', '=', 'p.pro_id')
+            ->join('vw_tamano as t', 'pp.tam_id', '=', 't.tam_id')
             ->whereIn('dp.ped_id', $pedidosTrabajo->pluck('ped_id'))
             ->select('dp.ped_id', 'p.pro_nom', 't.tam_nom', 'dp.dpe_can')
             ->get()

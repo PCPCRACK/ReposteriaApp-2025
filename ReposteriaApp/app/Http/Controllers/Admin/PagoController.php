@@ -9,21 +9,19 @@ class PagoController extends Controller
 {
     public function index()
     {
-        $pagos = DB::table('Pago as pa')
-            ->join('Pedido as pe', 'pa.ped_id', '=', 'pe.ped_id')
-            ->leftJoin('Cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
+        $pagos = DB::table('vw_pagos_pedidos_clientes as pc')
             ->select(
-                'pa.pag_id',
-                'pa.pag_fec',
-                'pa.pag_hora',
-                'pa.pag_metodo',
-                'pa.ped_id',
-                'pe.ped_total',
-                'c.cli_nom',
-                'c.cli_apellido'
+                'pc.pag_id',
+                'pc.pag_fec',
+                'pc.pag_hora',
+                'pc.pag_metodo',
+                'pc.ped_id',
+                'pc.ped_total',
+                'pc.cli_nom',
+                'pc.cli_apellido'
             )
-            ->orderByDesc('pa.pag_fec')
-            ->orderByDesc('pa.pag_hora')
+            ->orderByDesc('pc.pag_fec')
+            ->orderByDesc('pc.pag_hora')
             ->get();
 
         return view('admin.pagos.index', compact('pagos'));

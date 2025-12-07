@@ -9,9 +9,9 @@ class RecetaController extends Controller
 {
     public function index()
     {
-        $recetas = DB::table('Receta as r')
-            ->leftJoin('DetalleReceta as dr', 'r.rec_id', '=', 'dr.rec_id')
-            ->leftJoin('Ingrediente as i', 'dr.ing_id', '=', 'i.ing_id')
+        $recetas = DB::table('vw_receta as r')
+            ->leftJoin('vw_detalle_receta as dr', 'r.rec_id', '=', 'dr.rec_id')
+            ->leftJoin('vw_ingrediente as i', 'dr.ing_id', '=', 'i.ing_id')
             ->select(
                 'r.rec_id',
                 'r.rec_nom',

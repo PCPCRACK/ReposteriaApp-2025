@@ -11,26 +11,24 @@ class PagoController extends Controller
 {
     public function index()
     {
-        $pagos = DB::table('Pago as pa')
-            ->join('Pedido as pe', 'pa.ped_id', '=', 'pe.ped_id')
-            ->leftJoin('Cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
+        $pagos = DB::table('vw_pagos_pedidos_clientes as pc')
             ->select(
-                'pa.pag_id',
-                'pa.pag_fec',
-                'pa.pag_hora',
-                'pa.pag_metodo',
-                'pa.ped_id',
-                'pe.ped_total',
-                'c.cli_nom',
-                'c.cli_apellido'
+                'pc.pag_id',
+                'pc.pag_fec',
+                'pc.pag_hora',
+                'pc.pag_metodo',
+                'pc.ped_id',
+                'pc.ped_total',
+                'pc.cli_nom',
+                'pc.cli_apellido'
             )
-            ->orderByDesc('pa.pag_fec')
-            ->orderByDesc('pa.pag_hora')
+            ->orderByDesc('pc.pag_fec')
+            ->orderByDesc('pc.pag_hora')
             ->get();
 
-        $pedidosSinPago = DB::table('Pedido as pe')
-            ->leftJoin('Pago as pa', 'pe.ped_id', '=', 'pa.ped_id')
-            ->leftJoin('Cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
+        $pedidosSinPago = DB::table('vw_pedido as pe')
+            ->leftJoin('vw_pago as pa', 'pe.ped_id', '=', 'pa.ped_id')
+            ->leftJoin('vw_cliente as c', 'pe.cli_cedula', '=', 'c.cli_cedula')
             ->whereNull('pa.pag_id')
             ->whereNotIn('pe.ped_est', ['Anulado'])
             ->select('pe.ped_id', 'pe.ped_total', 'pe.ped_est', 'pe.ped_fec', 'c.cli_nom', 'c.cli_apellido')
@@ -49,11 +47,11 @@ class PagoController extends Controller
 
         $now = Carbon::now();
 
-        DB::table('Pago')->insert([
-            'ped_id' => $validated['ped_id'],
-            'pag_metodo' => $validated['pag_metodo'],
-            'pag_fec' => $now->toDateString(),
-            'pag_hora' => $now->toTimeString(),
+        DB::statement('CALL sp_registrar_pago(?, ?, ?, ?, @new_pag_id)', [
+            $validated['ped_id'],
+            $validated['pag_metodo'],
+            $now->toDateString(),
+            $now->toTimeString(),
         ]);
 
         return redirect()->route('cajero.pagos.index')->with('success', 'Pago registrado correctamente.');
